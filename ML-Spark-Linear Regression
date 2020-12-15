@@ -26,3 +26,21 @@ mlflow.spark.log_model(pipelineModel_lr, "model")
 # trasforming the test data set into predDF_lr and display the prediction results
 predDF_lr = pipelineModel_lr.transform(testDelta)
 display(predDF_lr.select("features", "likes", "prediction").limit(5))
+
+regressionEvaluator_lr = RegressionEvaluator(predictionCol="prediction", labelCol="likes", metricName="rmse")
+
+rmse = regressionEvaluator_lr.evaluate(predDF_lr)
+r2 = regressionEvaluator_lr.setMetricName("r2").evaluate(predDF_lr)
+print(f"RMSE is {rmse}")
+print(f"R2 is {r2}")
+
+###residual plot###
+lr_Pred = pipelineModel_lr.transform(df_base4)
+lr_Result = lr_Pred.toPandas()
+resi = lr_Result.likes - lr_Result.prediction
+
+plt.plot(lr_Result.likes, resi, 'bo')
+plt.xlabel('likes')
+plt.ylabel('Residual')
+plt.suptitle("Residual Model with Performance RMSE: %f" % rmse)
+plt.show()
