@@ -1,0 +1,87 @@
+file_path = "dbfs:/FileStore/shared_uploads/username/USvideos.csv"
+df = spark.read.csv(file_path, header="true", inferSchema="true", multiLine="true", escape='"')
+display(df.dtypes)
+
+from pyspark.sql.functions import *
+from pyspark.sql.functions import date_format
+
+# extracting the information of year, month, quarter, and dayofweek from the column "publish_time"
+df_date = df.withColumn("publish_year", year("publish_time").alias("year"))
+df_date1 = df_date.withColumn("publish_month", month("publish_time").alias("month"))
+df_date2 = df_date1.withColumn("publish_quarter", quarter("publish_time").alias("quarter"))
+df_date3 = df_date2.withColumn("publish_dayofweek", dayofweek("publish_time").alias("dayofweek"))
+df_date4 = df_date3.withColumn('publish_hour', date_format('publish_time', 'HH'))
+display(df_date4.limit(5))
+
+import pandas as pd 
+
+df_pd = df_date4.toPandas()
+
+df_pd['text'] = df_pd['title']+df_pd['channel_title']+df_pd['tags']
+df_pd.isnull().sum()
+
+####NLP###
+import nltk
+from nltk.stem import *
+nltk.download('punkt')
+from nltk.tokenize import RegexpTokenizer
+import pandas as pd
+from tqdm.notebook import tqdm
+tqdm.pandas()
+from functools import reduce
+import re
+
+from nltk.corpus import stopwords
+nltk.download('wordnet') 
+nltk.download('stopwords')
+stop_words = set(stopwords.words('english'))
+
+
+from nltk.stem import WordNetLemmatizer
+wordnet_lemmatizer = WordNetLemmatizer()
+
+def process(line):
+    return([wordnet_lemmatizer.lemmatize(t) for t in tokenizer.tokenize(line) if t not in stop_words])
+    
+
+tokenizer = RegexpTokenizer(r'\w+')
+df_pd['tokens']=df_pd['text'].str.lower().apply(process)
+
+def most_frequent(List): 
+    counter = 0
+    num = List[0] 
+      
+    for i in List: 
+        curr_frequency = List.count(i) 
+        if(curr_frequency> counter): 
+            counter = curr_frequency 
+            num = i 
+  
+    return num
+  
+df_pd['most_common'] = df_pd['tokens'].apply(most_frequent)
+
+df_pd.head()
+
+from collections import Counter
+one = df_pd['most_common'].to_list()
+
+rslt = pd.DataFrame(Counter(one).most_common(10),
+                    columns=['Word', 'Frequency']).set_index('Word')
+rslt
+
+###Convert all boolean type column to integer type column, so that it will only show (0 / 1)#####
+df_pd["popular_word"] = df_pd["popular_word"].astype(int)
+df_pd["comments_disabled"] = df_pd["comments_disabled"].astype(int)
+df_pd["ratings_disabled"] = df_pd["ratings_disabled"].astype(int)
+df_pd["video_error_or_removed"] = df_pd["video_error_or_removed"].astype(int)
+df_pd["publish_hour"] = df_pd["publish_hour"].astype(int)
+
+##Visual data####
+import seaborn as sns
+import matplotlib.pyplot as plt 
+
+df_pd[['dislikes','views','comment_count','likes']].corr()
+
+##Convert back to Spark##
+df_base_new = sqlContext.createDataFrame(df_pd)
