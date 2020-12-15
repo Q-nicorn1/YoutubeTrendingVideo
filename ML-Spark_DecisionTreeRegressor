@@ -1,0 +1,44 @@
+from pyspark.ml.regression import DecisionTreeRegressor
+
+# set the decisiontree regression model with maxBins=40
+dt = DecisionTreeRegressor(labelCol="likes", maxBins=40)
+
+stages = [vecAssembler, dt]
+pipeline = Pipeline(stages=stages)
+pipelineModel = pipeline.fit(trainDelta)
+
+dtModel = pipelineModel.stages[-1]
+display(dtModel)
+
+importances_dt = dtModel.featureImportances
+
+x_values_dt = list(range(len(importances_dt)))
+
+plt.figure(figsize=(12,5))
+plt.bar(x_values_dt, importances_dt, orientation = 'vertical')
+plt.xticks(x_values_dt, feature_list, rotation=40)
+plt.ylabel('Importance')
+plt.xlabel('Feature')
+plt.title('Feature Importances')
+
+importances_dt = dtModel.featureImportances
+
+x_values_dt = list(range(len(importances_dt)))
+
+plt.figure(figsize=(12,5))
+plt.bar(x_values_dt, importances_dt, orientation = 'vertical')
+plt.xticks(x_values_dt, feature_list, rotation=40)
+plt.ylabel('Importance')
+plt.xlabel('Feature')
+plt.title('Feature Importances')
+
+predDF = pipelineModel.transform(testDelta)
+
+display(predDF.select("features", "likes", "prediction").orderBy("likes", ascending=False).limit(5))
+
+regressionEvaluator = RegressionEvaluator(predictionCol="prediction", labelCol="likes", metricName="rmse")
+
+rmse = regressionEvaluator.evaluate(predDF)
+r2 = regressionEvaluator.setMetricName("r2").evaluate(predDF)
+print(f"RMSE is {rmse}")
+print(f"R2 is {r2}")
