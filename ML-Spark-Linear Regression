@@ -1,0 +1,28 @@
+import mlflow
+import mlflow.spark
+from pyspark.ml.regression import LinearRegression
+from pyspark.ml import Pipeline
+from pyspark.ml.evaluation import RegressionEvaluator
+from pyspark.ml.feature import RFormula
+
+mlflow.set_experiment(f"/Users/ngaukahang@gmail.com/tr-mlflow-lab")
+
+# The feature columns will the variable in feature_list, and the label column will be 'likes'
+mlflow.log_param("label", "likes-all-features")
+mlflow.log_param("data_version", data_version)
+mlflow.log_param("data_path", trainDeltaPath)    
+  
+# set the linear regression model with maxIter=10, regParam=0.3, elasticNetParam=0.8. 
+lr = LinearRegression(labelCol="likes", featuresCol="features", maxIter=10, regParam=0.3, elasticNetParam=0.8)
+
+# putting all the features in pipeline stages
+stages = [vecAssembler, lr]
+pipeline_lr = Pipeline(stages=stages)
+
+# used the pipeline to fit the lr model
+pipelineModel_lr = pipeline_lr.fit(trainDelta)
+mlflow.spark.log_model(pipelineModel_lr, "model")
+
+# trasforming the test data set into predDF_lr and display the prediction results
+predDF_lr = pipelineModel_lr.transform(testDelta)
+display(predDF_lr.select("features", "likes", "prediction").limit(5))
