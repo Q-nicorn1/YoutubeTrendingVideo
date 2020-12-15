@@ -1,0 +1,67 @@
+from pyspark.sql.types import *
+
+columns_keep = [
+ 'publish_year',
+ 'publish_month',
+ 'publish_quarter',
+ 'publish_dayofweek',
+ 'publish_hour',
+ 'category_id',
+ 'views',
+ 'likes',
+ 'dislikes',
+ 'comment_count',
+ 'comments_disabled',
+ 'ratings_disabled',
+ 'video_error_or_removed',
+ 'popular_word'
+]
+
+#df_date3.cache().count()
+df_base = df_base_new.select(columns_keep)
+
+display(df_base.limit(5))
+
+df_base1 = df_base.withColumn("comments_disabled", col("comments_disabled").cast("int"))
+df_base2 = df_base1.withColumn("ratings_disabled", col("ratings_disabled").cast("int"))
+df_base3 = df_base2.withColumn("video_error_or_removed", col("video_error_or_removed").cast("int"))
+df_base5 = df_base3.withColumn("publish_hour", col("publish_hour").cast("int"))
+df_base4 = df_base5.withColumn("popular_word", col("popular_word").cast("int"))
+
+df_base4.dtypes
+
+######Store all the feature columns in 'likes', to 'feature_list'. Then apply VectorAssembler to convert all features to OutPutColumn######
+from pyspark.ml.feature import VectorAssembler
+
+feature_list = []
+for col in df_base4.columns:
+    if col == 'likes':
+        continue
+    else:
+        feature_list.append(col)
+        
+vecAssembler = VectorAssembler(inputCols=feature_list, outputCol="features")
+
+####model ####
+(trainDF, testDF) = df_base4.randomSplit([.8, .2], seed=345)
+
+dbutils.fs.rm(trainDeltaPath, True)
+dbutils.fs.rm(testDeltaPath, True)
+
+(trainDF
+  .write
+  .mode("overwrite")
+  .format("delta")
+  .save(trainDeltaPath)
+)
+
+(testDF
+  .write
+  .mode("overwrite")
+  .format("delta")
+  .save(testDeltaPath)
+)
+
+data_version = 0
+trainDelta = spark.read.format("delta").option("versionAsOf", data_version).load(trainDeltaPath)  
+testDelta = spark.read.format("delta").option("versionAsOf", data_version).load(testDeltaPath)
